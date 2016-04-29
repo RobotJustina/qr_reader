@@ -4,7 +4,7 @@
 ** any purpose.
 **
 ** QRDecoder.h
-** Class definition for wrapping over the libdecodeqr library running
+** Class definition for wrapping over the ZBar library running
 ** asynchronously along with a ros node.
 ** 
 ** Author: Mauricio Matamoros
@@ -15,7 +15,7 @@
 
 #include <cstdlib>
 #include <string>
-#include <decodeqr.h>
+#include <zbar.h>
 #include <cv_bridge/cv_bridge.h>
 #include <boost/thread.hpp>
 #include <boost/thread/mutex.hpp>
@@ -38,15 +38,14 @@ namespace qr_reader{
 			void runAsync();
 
 		private:
-			QrDecoderHandle decoder;
+			zbar::ImageScanner scanner;
 			stringFunction textRecognized;
 			cv_bridge::CvImageConstPtr sImgPtr;
 			boost::mutex mutex;
 			boost::condition_variable condition;
 			boost::thread *mainThread;
 			void mainThreadTask();
-			bool decode(cv_bridge::CvImageConstPtr& imgPtr, QrCodeHeader& header);
-			bool fetchText(const QrCodeHeader& header, std::string& text);
+			bool decode(cv_bridge::CvImageConstPtr& imgPtr, std::string& text);
 	};
 
 } /* namespace qr_reader */
