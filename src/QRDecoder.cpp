@@ -4,7 +4,7 @@
 ** any purpose.
 **
 ** QRDecoder.cpp
-** Class implementation for wrapping over the libdecodeqr library running
+** Class implementation for wrapping over the ZBar library running
 ** asynchronously along with a ros node.
 ** 
 ** Author: Mauricio Matamoros
@@ -14,11 +14,9 @@
 using namespace qr_reader;
 
 QRDecoder::QRDecoder(): mainThread(NULL){
-	decoder = qr_decoder_open();
 }
 
 QRDecoder::~QRDecoder(){
-	qr_decoder_close(decoder);
 }
 
 void QRDecoder::addTextRecognizedHandler(const stringFunctionType& handler){
@@ -35,8 +33,8 @@ void QRDecoder::beginRecognize(cv_bridge::CvImageConstPtr& imgPtr){
 }
 
 std::string QRDecoder::info(){
-	std::string s("libdecodeqr version: ");
-	s+= qr_decoder_version();
+	std::string s("zBar version: ");
+	
 	return s;
 }
 
@@ -44,69 +42,41 @@ void QRDecoder::mainThreadTask(){
 	run();
 }
 
+bool QRDecoder::decode(cv_bridge::CvImageConstPtr& imgPtr, std::string& text){
+	cv::Mat gray;
+	int width = imgPtr->image.cols;
+	int height = imgPtr->image.rows;
 
-bool QRDecoder::decode(cv_bridge::CvImageConstPtr& imgPtr, QrCodeHeader& header){
-	if( qr_decoder_is_busy(decoder) )
-		return false;
-
-	short result;
-	short size = 25;
 	try{
-		IplImage* iplImg = new IplImage(imgPtr->image);
-		qr_decoder_set_image_buffer(decoder, iplImg);
-		do{
-			// result = qr_decoder_decode_image(decoder, iplImg, size);
-			result = qr_decoder_decode(decoder, size);
-			result&= QR_IMAGEREADER_DECODED;
-			size -= 2;
-		}while( (size > 1) && (result == 0) );
-		// delete iplImg;
-
-		if( !qr_decoder_get_header(decoder, &header) )
+		// Convert image to grayscale
+		cvtColor(imgPtr->image, gray, CV_BGR2GRAY);
+		// Wrap image data
+		zbar::Image image(width, height, "Y800", (unsigned char*)gray.data, width * height);
+		// Scan the image for barcodes
+		int n = scanner.scan(image);
+		if(n < 1)
 			return false;
-	}
-	catch ( ... ){
-		qr_decoder_close(decoder);
-		decoder = qr_decoder_open();
-		return false;
-	}
-	return true;
-}
-
-bool QRDecoder::fetchText(const QrCodeHeader& header, std::string& text){
-	bool readable = true;
-	char *buffer = NULL;
-	try{
-		size_t bufferSize = header.byte_size + 1;
-		char *buffer = new char[bufferSize];
-		qr_decoder_get_body(decoder, (unsigned char*)buffer, bufferSize);
-		text.assign(buffer, bufferSize);
-		/*
-		size_t ix;
-		for(ix = 0; (ix < bufferSize-1) && (buffer[ix] != 0); ++ix){
-			if((buffer[ix] < 32) || (buffer[ix] > 126)){
-				readable = false;
-				break;
-			}
+		// Extract results
+		zbar::Image::SymbolIterator symbol = image.symbol_begin();
+		text = symbol->get_data();
+		return true;
+		for(; symbol != image.symbol_end(); ++symbol) {
+			/*
+			* symbol->get_type_name() tells teh type (barcode or QRcode)
+			* symbol->get_data() fetch the data
+			* symbol->get_location_size() fetch the size of the code
+			* symbol->get_location_x(i) x-coordinate of the code
+			* symbol->get_location_y(i) y-coordinate of the code
+			*/
 		}
-		if(ix < 1)
-			readable = 0;
-		*/
 	}
 	catch ( ... ){
-		if(buffer != NULL)
-			delete[] buffer;
 		return false;
 	}
-	delete[] buffer;
-	return readable;
 }
 
 bool QRDecoder::recognize(cv_bridge::CvImageConstPtr& imgPtr, std::string& text){
-	QrCodeHeader header;
-	if(!decode(imgPtr, header))
-		return false;
-	if(!fetchText(header, text))
+	if(!decode(imgPtr, text))
 		return false;
 	std::cout << "QR Text: " << text << std::flush << std::endl;
 	return true;
