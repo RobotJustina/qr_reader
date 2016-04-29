@@ -48,13 +48,15 @@ find_package( OpenCV REQUIRED )
 
 #######################################
 #
-# DecodeQR
+# ZBar & libDecodeQR
 #
 #######################################
 
 set(CONFIG_DIR "${CMAKE_CURRENT_LIST_DIR}/config/")
-set(DecodeQR_DIR "${CONFIG_DIR}")
-find_package(DecodeQR REQUIRED)
+# set(DecodeQR_DIR "${CONFIG_DIR}")
+# find_package(DecodeQR REQUIRED)
+set(ZBar_DIR "${CONFIG_DIR}")
+find_package(ZBar REQUIRED)
 
 #######################################
 #
@@ -76,7 +78,8 @@ FIND_PACKAGE( Boost 1.40 COMPONENTS program_options system filesystem regex thre
 INCLUDE_DIRECTORIES(include ${catkin_INCLUDE_DIRS}
 							${Boost_INCLUDE_DIR}
 							${OpenCV_INCLUDE_DIRS}
-							${DecodeQR_INCLUDE_DIR}
+							# ${DecodeQR_INCLUDE_DIR}
+							${ZBar_INCLUDE_DIR}
 					)
 
 file(GLOB_RECURSE headers "src/*.h*")
@@ -87,7 +90,8 @@ add_executable(qr_reader ${sources} ${headers} )
 target_link_libraries(qr_reader ${catkin_LIBRARIES}
 							${Boost_LIBRARIES}
 							${OpenCV_LIBRARIES}
-							${DecodeQR_LIBRARY}
+							# ${DecodeQR_LIBRARY}
+							${ZBar_LIBRARY}
 			)
 add_dependencies(qr_reader qr_reader_generate_messages_cpp)
 
